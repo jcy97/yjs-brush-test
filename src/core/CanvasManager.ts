@@ -4,14 +4,13 @@ import { BrushStroke, Point, User } from "../types/brush";
 
 /**
  * 개별 캔버스를 관리하는 클래스
- * 각 캔버스마다 독립적인 YJS 문서와 그리기 엔진을 가집니다.
+ * YJS Awareness를 사용하여 실시간 커서 추적을 개선했습니다.
  */
 export class CanvasManager {
   // YJS 관련
   public doc: Y.Doc;
   public provider: WebsocketProvider;
   public strokes: Y.Array<BrushStroke>;
-  public users: Y.Map<User>;
   public userId: string;
 
   // Canvas 관련
@@ -24,6 +23,7 @@ export class CanvasManager {
   private currentStroke: Point[] = [];
   private brushSize: number = 5;
   private brushColor: string = "#000000";
+  private userColor: string;
 
   // 콜백들
   private onUserChangeCallback?: (users: Map<string, User>) => void;
@@ -33,7 +33,7 @@ export class CanvasManager {
     canvasId: string,
     canvas: HTMLCanvasElement,
     cursorsContainer: HTMLElement,
-    persistentUserId?: string // 사용자 ID를 외부에서 받아서 재사용
+    persistentUserId?: string
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -41,6 +41,7 @@ export class CanvasManager {
 
     // 기존 사용자 ID 재사용 또는 새로 생성
     this.userId = persistentUserId || this.generateUserId();
+    this.userColor = this.generateRandomColor();
 
     console.log(
       "🎨 CanvasManager 초기화 - Project:",
@@ -67,14 +68,13 @@ export class CanvasManager {
       console.log("📡 캔버스 연결 상태:", event.status);
     });
 
-    // 공유 데이터 구조 정의
+    // 공유 데이터 구조 정의 (스트로크만 Y.js로 관리)
     this.strokes = this.doc.getArray<BrushStroke>("strokes");
-    this.users = this.doc.getMap<User>("users");
 
     this.setupCanvas();
     this.setupEventListeners();
     this.setupYjsListeners();
-    this.initializeUser();
+    this.setupAwareness();
     this.renderExistingStrokes();
   }
 
@@ -91,11 +91,12 @@ export class CanvasManager {
       this.isDrawing = true;
       const point = this.getPointFromEvent(e);
       this.startDrawing(point);
+      this.updateAwarenessCursor(point);
     });
 
     this.canvas.addEventListener("mousemove", (e) => {
       const point = this.getPointFromEvent(e);
-      this.updateUserCursor(point);
+      this.updateAwarenessCursor(point);
 
       if (this.isDrawing) {
         this.addPoint(point);
@@ -108,6 +109,14 @@ export class CanvasManager {
 
     this.canvas.addEventListener("mouseleave", () => {
       this.endDrawing();
+      // 마우스가 캔버스를 벗어나면 커서 숨기기
+      this.updateAwarenessCursor(null);
+    });
+
+    this.canvas.addEventListener("mouseenter", (e) => {
+      // 마우스가 캔버스에 다시 들어오면 커서 표시
+      const point = this.getPointFromEvent(e);
+      this.updateAwarenessCursor(point);
     });
 
     // 터치 이벤트 (모바일 지원)
@@ -116,12 +125,13 @@ export class CanvasManager {
       this.isDrawing = true;
       const point = this.getPointFromTouchEvent(e);
       this.startDrawing(point);
+      this.updateAwarenessCursor(point);
     });
 
     this.canvas.addEventListener("touchmove", (e) => {
       e.preventDefault();
       const point = this.getPointFromTouchEvent(e);
-      this.updateUserCursor(point);
+      this.updateAwarenessCursor(point);
 
       if (this.isDrawing) {
         this.addPoint(point);
@@ -131,6 +141,7 @@ export class CanvasManager {
     this.canvas.addEventListener("touchend", (e) => {
       e.preventDefault();
       this.endDrawing();
+      this.updateAwarenessCursor(null);
     });
   }
 
@@ -145,29 +156,96 @@ export class CanvasManager {
         }
       }
     });
+  }
 
-    // 사용자 커서 업데이트 감지
-    this.users.observe(() => {
+  private setupAwareness(): void {
+    // Awareness 초기 상태 설정
+    this.provider.awareness.setLocalStateField("user", {
+      id: this.userId,
+      color: this.userColor,
+      cursor: null,
+    });
+
+    // Awareness 변경 감지
+    this.provider.awareness.on("change", () => {
       this.updateCursors();
-      this.onUserChangeCallback?.(new Map(this.users.entries()));
+      this.updateUserList();
+    });
+
+    console.log(
+      "👁️ Awareness 설정 완료 - User:",
+      this.userId,
+      "Color:",
+      this.userColor
+    );
+  }
+
+  private updateAwarenessCursor(position: Point | null): void {
+    const currentState = this.provider.awareness.getLocalState();
+    this.provider.awareness.setLocalStateField("user", {
+      ...currentState?.user,
+      cursor: position,
     });
   }
 
-  private initializeUser(): void {
-    // 기존 사용자 정보가 있는지 확인
-    const existingUser = this.users.get(this.userId);
+  private updateCursors(): void {
+    // 기존 커서 제거
+    this.cursorsContainer.innerHTML = "";
 
-    if (existingUser) {
-      console.log("👤 기존 사용자 정보 사용:", existingUser);
-    } else {
-      const userColor = this.generateRandomColor();
-      const newUser: User = {
-        id: this.userId,
-        color: userColor,
-      };
-      this.users.set(this.userId, newUser);
-      console.log("👤 새 사용자 생성:", newUser);
-    }
+    // 모든 연결된 사용자의 커서 렌더링
+    this.provider.awareness.getStates().forEach((state, clientId) => {
+      // 자신의 커서는 표시하지 않음
+      if (clientId === this.provider.awareness.clientID) return;
+
+      const user = state.user;
+      if (user && user.cursor) {
+        this.renderUserCursor(user);
+      }
+    });
+  }
+
+  private updateUserList(): void {
+    const users = new Map<string, User>();
+
+    this.provider.awareness.getStates().forEach((state) => {
+      const user = state.user;
+      if (user) {
+        users.set(user.id, {
+          id: user.id,
+          color: user.color,
+          cursor: user.cursor,
+        });
+      }
+    });
+
+    this.onUserChangeCallback?.(users);
+  }
+
+  private renderUserCursor(user: User): void {
+    if (!user.cursor) return;
+
+    const cursor = document.createElement("div");
+    cursor.className = "user-cursor";
+    cursor.style.cssText = `
+      position: absolute;
+      left: ${user.cursor.x}px;
+      top: ${user.cursor.y}px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: ${user.color};
+      border: 2px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 1000;
+      transition: all 0.1s ease-out;
+    `;
+
+    // 사용자 이름 툴팁 추가
+    cursor.title = `사용자 ${user.id}`;
+
+    this.cursorsContainer.appendChild(cursor);
   }
 
   private startDrawing(point: Point): void {
@@ -240,51 +318,6 @@ export class CanvasManager {
     });
   }
 
-  private updateUserCursor(position: Point): void {
-    const currentUser = this.users.get(this.userId);
-    if (currentUser) {
-      this.users.set(this.userId, {
-        ...currentUser,
-        cursor: position,
-      });
-    }
-  }
-
-  private updateCursors(): void {
-    // 기존 커서 제거
-    this.cursorsContainer.innerHTML = "";
-
-    // 모든 사용자의 커서 렌더링
-    this.users.forEach((user, userId) => {
-      if (userId !== this.userId && user.cursor) {
-        this.renderUserCursor(user);
-      }
-    });
-  }
-
-  private renderUserCursor(user: User): void {
-    if (!user.cursor) return;
-
-    const cursor = document.createElement("div");
-    cursor.className = "user-cursor";
-    cursor.style.cssText = `
-      position: absolute;
-      left: ${user.cursor.x}px;
-      top: ${user.cursor.y}px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background-color: ${user.color};
-      border: 2px solid white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      pointer-events: none;
-      transform: translate(-50%, -50%);
-      z-index: 1000;
-    `;
-
-    this.cursorsContainer.appendChild(cursor);
-  }
-
   private getPointFromEvent(e: MouseEvent): Point {
     const rect = this.canvas.getBoundingClientRect();
     return {
@@ -318,7 +351,20 @@ export class CanvasManager {
   }
 
   public getConnectedUsers(): Map<string, User> {
-    return new Map(this.users.entries());
+    const users = new Map<string, User>();
+
+    this.provider.awareness.getStates().forEach((state) => {
+      const user = state.user;
+      if (user) {
+        users.set(user.id, {
+          id: user.id,
+          color: user.color,
+          cursor: user.cursor,
+        });
+      }
+    });
+
+    return users;
   }
 
   public onUserChange(callback: (users: Map<string, User>) => void): void {
@@ -359,26 +405,36 @@ export class CanvasManager {
 
   private generateRandomColor(): string {
     const colors = [
-      "#FF6B6B",
-      "#4ECDC4",
-      "#45B7D1",
-      "#FFA07A",
-      "#98D8C8",
-      "#F7DC6F",
-      "#BB8FCE",
-      "#82E0AA",
+      "#FF6B6B", // 레드
+      "#4ECDC4", // 터콰이즈
+      "#45B7D1", // 블루
+      "#FFA07A", // 라이트 살몬
+      "#98D8C8", // 아쿠아마린
+      "#F7DC6F", // 옐로우
+      "#BB8FCE", // 퍼플
+      "#82E0AA", // 그린
+      "#F8C471", // 오렌지
+      "#85C1E9", // 라이트 블루
     ];
     return colors[Math.floor(Math.random() * colors.length)];
   }
 
   public destroy(): void {
-    // 현재 사용자 정보 제거
-    this.users.delete(this.userId);
+    // Awareness에서 사용자 제거
+    this.provider.awareness.setLocalStateField("user", null);
+
+    // 커서 컨테이너 정리
+    this.cursorsContainer.innerHTML = "";
 
     // YJS 연결 정리
     this.provider.destroy();
     this.doc.destroy();
 
     console.log("🗑️ CanvasManager 정리됨 - User:", this.userId);
+  }
+
+  // getUserId를 외부에서 접근할 수 있도록 추가
+  public getUserId(): string {
+    return this.userId;
   }
 }

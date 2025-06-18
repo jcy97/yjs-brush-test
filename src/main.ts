@@ -256,7 +256,7 @@ class MultiCanvasApp {
     // 이전 캔버스 매니저 정리
     if (this.currentCanvasManager) {
       this.projectManager.setUserLocation(
-        this.currentCanvasManager.userId,
+        this.currentCanvasManager.getUserId(),
         null
       );
       this.currentCanvasManager.destroy();
@@ -286,7 +286,7 @@ class MultiCanvasApp {
       this.projectManager.updateCanvasLastModified(canvasId);
     }
 
-    // 사용자 목록 업데이트 콜백 설정
+    // 사용자 목록 업데이트 콜백 설정 (awareness 기반)
     this.currentCanvasManager.onUserChange((users) => {
       this.updateOnlineUsers(users);
     });
@@ -300,6 +300,12 @@ class MultiCanvasApp {
     // UI 상태 업데이트
     this.showCanvas();
     this.updateCanvasList(); // active 상태 업데이트
+
+    // 초기 사용자 목록 업데이트
+    setTimeout(() => {
+      const users = this.currentCanvasManager?.getConnectedUsers() || new Map();
+      this.updateOnlineUsers(users);
+    }, 100);
   }
 
   private get ctx(): CanvasRenderingContext2D {
@@ -329,7 +335,11 @@ class MultiCanvasApp {
   private updateOnlineUsers(users: Map<string, User>): void {
     this.onlineUsers.innerHTML = "";
 
-    users.forEach((user) => {
+    const sortedUsers = Array.from(users.values())
+      .filter((user) => user.id) // ID가 있는 사용자만 표시
+      .sort((a, b) => a.id.localeCompare(b.id)); // ID로 정렬
+
+    sortedUsers.forEach((user) => {
       const userElement = document.createElement("div");
       userElement.className = "online-user";
       userElement.style.backgroundColor = user.color;
@@ -337,6 +347,9 @@ class MultiCanvasApp {
       userElement.title = `사용자 ${user.id}`;
       this.onlineUsers.appendChild(userElement);
     });
+
+    // 사용자 수가 변경되면 캔버스 목록도 업데이트
+    this.updateCanvasList();
   }
 
   private showCanvas(): void {
@@ -385,4 +398,13 @@ const app = new MultiCanvasApp();
 // 페이지 언로드 시 정리
 window.addEventListener("beforeunload", () => {
   app.destroy();
+});
+
+// 브라우저 탭 전환 감지하여 연결 상태 관리
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    console.log("🔒 탭이 숨겨짐 - 연결 유지");
+  } else {
+    console.log("👁️ 탭이 활성화됨");
+  }
 });
