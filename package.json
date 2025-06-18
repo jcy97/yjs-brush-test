@@ -1,0 +1,38 @@
+{
+  "name": "collaborative-brush",
+  "version": "1.0.0",
+  "description": "실시간 협업 브러시 애플리케이션",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently --kill-others \"npm run server\" \"wait-on tcp:1234 && npm run client\"",
+    "client": "vite",
+    "server": "npx y-websocket-server --port 1234",
+    "server:only": "npx y-websocket-server --port 1234",
+    "build": "tsc && vite build",
+    "serve": "vite preview",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yjs": "^13.6.8",
+    "y-websocket": "^1.5.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^4.4.9",
+    "@types/node": "^20.8.0",
+    "@types/ws": "^8.5.8",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
+  },
+  "keywords": [
+    "yjs",
+    "collaborative",
+    "drawing",
+    "brush",
+    "realtime",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT"
+}

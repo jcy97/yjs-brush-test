@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>실시간 협업 브러시</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      .toolbar {
+        background: #f5f5f5;
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
+
+      .canvas-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+
+      #canvas {
+        display: block;
+        cursor: crosshair;
+        background: white;
+      }
+
+      #cursors {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      label {
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      input[type="range"] {
+        width: 100px;
+      }
+
+      input[type="color"] {
+        width: 40px;
+        height: 30px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      button {
+        padding: 8px 16px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      button:hover {
+        background: #0056b3;
+      }
+
+      .status {
+        margin-left: auto;
+        font-size: 12px;
+        color: #666;
+      }
+
+      .user-cursor {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+      }
+
+      @media (max-width: 768px) {
+        .toolbar {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .control-group {
+          width: 100%;
+          justify-content: space-between;
+        }
+
+        .status {
+          margin-left: 0;
+          margin-top: 5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="toolbar">
+        <div class="control-group">
+          <label for="brushSize">크기:</label>
+          <input type="range" id="brushSize" min="1" max="50" value="5" />
+          <span id="sizeValue">5</span>
+        </div>
+
+        <div class="control-group">
+          <label for="brushColor">색상:</label>
+          <input type="color" id="brushColor" value="#000000" />
+        </div>
+
+        <button id="clearButton">전체 지우기</button>
+
+        <div class="status">
+          실시간 협업 브러시 - 다른 사용자와 함께 그려보세요!
+        </div>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="canvas"></canvas>
+        <div id="cursors"></div>
+      </div>
+    </div>
+
+    <script type="module" src="src/main.ts"></script>
+  </body>
+</html>
