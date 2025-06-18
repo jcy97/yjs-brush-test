@@ -1,7 +1,7 @@
 {
-  "name": "collaborative-brush",
-  "version": "1.0.0",
-  "description": "실시간 협업 브러시 애플리케이션",
+  "name": "multi-canvas-collaborative-brush",
+  "version": "2.0.0",
+  "description": "다중 캔버스 실시간 협업 브러시 애플리케이션",
   "type": "module",
   "scripts": {
     "dev": "concurrently --kill-others \"npm run server\" \"wait-on tcp:1234 && npm run client\"",
@@ -31,7 +31,9 @@
     "drawing",
     "brush",
     "realtime",
-    "typescript"
+    "typescript",
+    "multi-canvas",
+    "project-management"
   ],
   "author": "",
   "license": "MIT"

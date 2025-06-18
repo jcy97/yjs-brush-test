@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>실시간 협업 브러시</title>
+    <title>다중 캔버스 협업 브러시</title>
     <style>
       * {
         margin: 0;
@@ -15,28 +15,222 @@
         font-family: Arial, sans-serif;
         height: 100vh;
         overflow: hidden;
+        background: #f8f9fa;
       }
 
-      .container {
+      .app-container {
         display: flex;
-        flex-direction: column;
         height: 100vh;
       }
 
-      .toolbar {
-        background: #f5f5f5;
-        padding: 10px;
-        border-bottom: 1px solid #ddd;
+      .sidebar {
+        width: 280px;
+        background: #2c3e50;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        border-right: 2px solid #34495e;
+      }
+
+      .sidebar-header {
+        padding: 20px;
+        background: #34495e;
+        border-bottom: 1px solid #4a5f7a;
+      }
+
+      .project-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+
+      .project-id {
+        font-size: 12px;
+        color: #bdc3c7;
+      }
+
+      .canvas-section {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+      }
+
+      .section-title {
+        font-size: 14px;
+        font-weight: bold;
+        margin-bottom: 12px;
+        color: #ecf0f1;
+      }
+
+      .canvas-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .canvas-item {
+        padding: 12px;
+        background: #34495e;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+        position: relative;
+      }
+
+      .canvas-item:hover {
+        background: #4a5f7a;
+      }
+
+      .canvas-item.active {
+        background: #3498db;
+        border-color: #2980b9;
+      }
+
+      .canvas-name {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      .canvas-info {
+        font-size: 11px;
+        color: #bdc3c7;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .user-count {
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 4px;
+      }
+
+      .user-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #e74c3c;
+      }
+
+      .add-canvas-btn {
+        margin-top: 12px;
+        padding: 12px;
+        background: #27ae60;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+
+      .add-canvas-btn:hover {
+        background: #2ecc71;
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .main-header {
+        background: white;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .canvas-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+
+      .online-users {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .online-user {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        color: white;
+      }
+
+      .toolbar {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        align-items: center;
+        gap: 20px;
         flex-wrap: wrap;
       }
 
-      .canvas-container {
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .control-group label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #495057;
+      }
+
+      input[type="range"] {
+        width: 120px;
+      }
+
+      input[type="color"] {
+        width: 45px;
+        height: 35px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      button {
+        padding: 8px 16px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+      }
+
+      button:hover {
+        background: #0056b3;
+      }
+
+      .danger-btn {
+        background: #dc3545;
+      }
+
+      .danger-btn:hover {
+        background: #c82333;
+      }
+
+      .canvas-workspace {
         flex: 1;
         position: relative;
         overflow: hidden;
+        background: white;
       }
 
       #canvas {
@@ -54,49 +248,6 @@
         pointer-events: none;
       }
 
-      .control-group {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-      }
-
-      label {
-        font-size: 14px;
-        font-weight: bold;
-      }
-
-      input[type="range"] {
-        width: 100px;
-      }
-
-      input[type="color"] {
-        width: 40px;
-        height: 30px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-
-      button {
-        padding: 8px 16px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-      }
-
-      button:hover {
-        background: #0056b3;
-      }
-
-      .status {
-        margin-left: auto;
-        font-size: 12px;
-        color: #666;
-      }
-
       .user-cursor {
         position: absolute;
         width: 12px;
@@ -109,49 +260,177 @@
         z-index: 1000;
       }
 
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #6c757d;
+        text-align: center;
+      }
+
+      .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+
       @media (max-width: 768px) {
+        .sidebar {
+          width: 240px;
+        }
+
         .toolbar {
           flex-direction: column;
           align-items: flex-start;
-          gap: 10px;
+          gap: 12px;
         }
+      }
 
-        .control-group {
-          width: 100%;
-          justify-content: space-between;
-        }
+      /* 모달 스타일 */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+      }
 
-        .status {
-          margin-left: 0;
-          margin-top: 5px;
-        }
+      .modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-content {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 400px;
+      }
+
+      .modal-header {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 16px;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+
+      .form-group input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+
+      .btn-secondary {
+        background: #6c757d;
+      }
+
+      .btn-secondary:hover {
+        background: #545b62;
       }
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="toolbar">
-        <div class="control-group">
-          <label for="brushSize">크기:</label>
-          <input type="range" id="brushSize" min="1" max="50" value="5" />
-          <span id="sizeValue">5</span>
+    <div class="app-container">
+      <!-- 사이드바 -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="project-title">협업 프로젝트</div>
+          <div class="project-id" id="projectId">프로젝트 ID: -</div>
         </div>
 
-        <div class="control-group">
-          <label for="brushColor">색상:</label>
-          <input type="color" id="brushColor" value="#000000" />
-        </div>
-
-        <button id="clearButton">전체 지우기</button>
-
-        <div class="status">
-          실시간 협업 브러시 - 다른 사용자와 함께 그려보세요!
+        <div class="canvas-section">
+          <div class="section-title">캔버스 목록</div>
+          <div class="canvas-list" id="canvasList">
+            <!-- 캔버스 목록이 여기에 동적으로 추가됩니다 -->
+          </div>
+          <button class="add-canvas-btn" id="addCanvasBtn">
+            + 새 캔버스 추가
+          </button>
         </div>
       </div>
 
-      <div class="canvas-container">
-        <canvas id="canvas"></canvas>
-        <div id="cursors"></div>
+      <!-- 메인 컨텐츠 -->
+      <div class="main-content">
+        <div class="main-header">
+          <div class="canvas-title" id="canvasTitle">캔버스를 선택해주세요</div>
+          <div class="online-users" id="onlineUsers">
+            <!-- 온라인 사용자들이 여기에 표시됩니다 -->
+          </div>
+        </div>
+
+        <div class="toolbar" id="toolbar" style="display: none">
+          <div class="control-group">
+            <label for="brushSize">브러시 크기:</label>
+            <input type="range" id="brushSize" min="1" max="50" value="5" />
+            <span id="sizeValue">5</span>
+          </div>
+
+          <div class="control-group">
+            <label for="brushColor">색상:</label>
+            <input type="color" id="brushColor" value="#000000" />
+          </div>
+
+          <button id="clearButton">전체 지우기</button>
+          <button id="deleteCanvasButton" class="danger-btn">
+            캔버스 삭제
+          </button>
+        </div>
+
+        <div class="canvas-workspace" id="canvasWorkspace">
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon">🎨</div>
+            <h3>캔버스를 선택하거나 새로 만들어보세요</h3>
+            <p>
+              왼쪽 사이드바에서 캔버스를 선택하거나 새 캔버스를 추가할 수
+              있습니다.
+            </p>
+          </div>
+          <canvas id="canvas" style="display: none"></canvas>
+          <div id="cursors"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 새 캔버스 추가 모달 -->
+    <div class="modal" id="addCanvasModal">
+      <div class="modal-content">
+        <div class="modal-header">새 캔버스 추가</div>
+        <div class="form-group">
+          <label for="canvasNameInput">캔버스 이름</label>
+          <input
+            type="text"
+            id="canvasNameInput"
+            placeholder="캔버스 이름을 입력하세요"
+          />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-secondary" id="cancelAddCanvas">취소</button>
+          <button id="confirmAddCanvas">추가</button>
+        </div>
       </div>
     </div>
 
